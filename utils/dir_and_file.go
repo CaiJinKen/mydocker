@@ -10,6 +10,14 @@ func FileExist(path string) (ok bool) {
 	return false
 }
 
+//PathExist path whether exist, if not and authCreate is bool then return create result
+func PathExist(path string, autoCreate bool) bool {
+	if autoCreate {
+		return MustPathExist(path)
+	}
+	return FileExist(path)
+}
+
 //MustPathExist make sure path is exist
 func MustPathExist(path string) (ok bool) {
 	if _, err := os.Stat(path); err != nil {
