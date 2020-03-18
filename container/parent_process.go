@@ -30,8 +30,14 @@ func NewParentProcess(tty bool) (*exec.Cmd, *os.File) {
 
 	//extra read pipe to child process
 	cmd.ExtraFiles = []*os.File{readPipe}
+
+	//create container workspace
+	rootUrl := "/root/"
+	mntUrl := "/root/mnt"
+	NewWorkSpace(rootUrl, mntUrl)
+
 	//setup work dir
-	cmd.Dir = "/root/rootfs"
+	cmd.Dir = mntUrl
 
 	return cmd, writePipe
 }

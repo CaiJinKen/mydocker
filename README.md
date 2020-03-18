@@ -17,3 +17,5 @@ sudo ./mydocker -h
 
 增加cgroup，进行资源的限制(memory,cpu,cpuset)
 
+增加aufs包装镜像
+
