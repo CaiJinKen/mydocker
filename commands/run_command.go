@@ -37,6 +37,10 @@ var runCommand = cli.Command{
 			Name:  "cpuset",
 			Usage: "cpuset limit",
 		},
+		cli.StringSliceFlag{
+			Name:  "v",
+			Usage: "volume mapping",
+		},
 	},
 
 	Action: func(ctx *cli.Context) error {
@@ -50,16 +54,19 @@ var runCommand = cli.Command{
 			CpuShare:    ctx.String("cpushare"),
 		}
 
+		volumeURLs := ctx.StringSlice("v")
+		logrus.Infof("volumeURLs: %v", volumeURLs)
+
 		tty := ctx.Bool("ti")
-		Run(tty, []string(ctx.Args()), resConf)
+		Run(tty, []string(ctx.Args()), resConf, volumeURLs)
 		return nil
 	},
 }
 
 //Run fork a new process to start container
-func Run(tty bool, cmdArgs []string, res *subsystems.ResourceConfig) {
+func Run(tty bool, cmdArgs []string, res *subsystems.ResourceConfig, volumeURLs []string) {
 	logrus.Infof("Run tty %b, args: %v", tty, cmdArgs)
-	parent, writePipe := container.NewParentProcess(tty)
+	parent, writePipe := container.NewParentProcess(tty, volumeURLs)
 	if parent == nil {
 		logrus.Errorf("new parent process error")
 		return
@@ -83,7 +90,7 @@ func Run(tty bool, cmdArgs []string, res *subsystems.ResourceConfig) {
 	//delete container workspace
 	rootURL := "/root/"
 	mntURL := "/root/mnt"
-	container.DeleteWorkSpace(rootURL, mntURL)
+	container.DeleteWorkSpace(rootURL, mntURL, volumeURLs)
 
 	os.Exit(0)
 }

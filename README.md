@@ -19,3 +19,4 @@ sudo ./mydocker -h
 
 增加aufs包装镜像
 
+增加卷挂载支持

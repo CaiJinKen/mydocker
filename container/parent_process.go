@@ -9,7 +9,7 @@ import (
 )
 
 //NewParentProcess fork a new process and pass command and args to new process
-func NewParentProcess(tty bool) (*exec.Cmd, *os.File) {
+func NewParentProcess(tty bool, volumeURLs []string) (*exec.Cmd, *os.File) {
 	readPipe, writePipe, err := newPipe()
 	if err != nil {
 		return nil, nil
@@ -34,7 +34,7 @@ func NewParentProcess(tty bool) (*exec.Cmd, *os.File) {
 	//create container workspace
 	rootUrl := "/root/"
 	mntUrl := "/root/mnt"
-	NewWorkSpace(rootUrl, mntUrl)
+	NewWorkSpace(rootUrl, mntUrl, volumeURLs)
 
 	//setup work dir
 	cmd.Dir = mntUrl
