@@ -46,6 +46,9 @@ func getCgroupPath(subsystem, cgroupPath string, autoCreate bool) (string, error
 
 //set cgroup
 func cgroupSet(cgroupName, cgroupPath, fileName, value string) error {
+	if value == "" {
+		return nil
+	}
 	subsysCgroupPath, err := getCgroupPath(cgroupName, cgroupPath, true)
 	if err != nil {
 		return err
