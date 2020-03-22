@@ -19,7 +19,7 @@ func main() {
 
 	//setup logrus
 	app.Before = func(ctx *cli.Context) error {
-		logrus.SetLevel(logrus.ErrorLevel)
+		logrus.SetLevel(logrus.InfoLevel)
 		logrus.SetFormatter(&logrus.JSONFormatter{})
 		logrus.SetOutput(os.Stdout)
 		return nil

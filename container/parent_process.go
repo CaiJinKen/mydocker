@@ -19,7 +19,7 @@ func NewParentProcess(tty bool, volumeURLs []string) (*exec.Cmd, *os.File) {
 	cmd := exec.Command("/proc/self/exe", "init")
 	cmd.SysProcAttr = &syscall.SysProcAttr{
 		Cloneflags: syscall.CLONE_NEWUTS | syscall.CLONE_NEWPID | syscall.CLONE_NEWIPC | syscall.CLONE_NEWNET | syscall.CLONE_NEWNS,
-		Credential: &syscall.Credential{Uid: 0, Gid: 0},
+		//Credential: &syscall.Credential{Uid: 0, Gid: 0},
 	}
 
 	if tty {

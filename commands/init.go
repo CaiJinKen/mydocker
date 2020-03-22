@@ -8,4 +8,5 @@ var Commands = []cli.Command{
 	initCommand,
 	commitCommand,
 	psCommand,
+	execCommand,
 }

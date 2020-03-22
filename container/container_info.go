@@ -149,3 +149,11 @@ func getContainerInfo(containerID string, all bool) (*Info, error) {
 
 	return &info, nil
 }
+
+func GetContainerPidByName(containerName string) (string, error) {
+	info, err := getContainerInfo(containerName, true)
+	if err != nil {
+		return "", err
+	}
+	return info.Pid, nil
+}
