@@ -45,6 +45,14 @@ var runCommand = cli.Command{
 			Name:  "d",
 			Usage: "detach container",
 		},
+		cli.StringFlag{
+			Name:  "name",
+			Usage: "container name",
+		},
+		cli.BoolFlag{
+			Name:  "rm",
+			Usage: "delete container after stop",
+		},
 	},
 
 	Action: func(ctx *cli.Context) error {
@@ -67,13 +75,16 @@ var runCommand = cli.Command{
 		volumeURLs := ctx.StringSlice("v")
 		logrus.Infof("volumeURLs: %v", volumeURLs)
 
-		Run(tty, detach, []string(ctx.Args()), resConf, volumeURLs)
+		containerName := ctx.String("name")
+		logrus.Infof("containerName: %s", containerName)
+
+		Run(tty, detach, []string(ctx.Args()), resConf, volumeURLs, containerName)
 		return nil
 	},
 }
 
 //Run fork a new process to start container
-func Run(tty, detach bool, cmdArgs []string, res *subsystems.ResourceConfig, volumeURLs []string) {
+func Run(tty, detach bool, cmdArgs []string, res *subsystems.ResourceConfig, volumeURLs []string, containerName string) {
 	logrus.Infof("Run tty %b, args: %v", tty, cmdArgs)
 	parent, writePipe := container.NewParentProcess(tty, volumeURLs)
 	if parent == nil {
@@ -83,6 +94,13 @@ func Run(tty, detach bool, cmdArgs []string, res *subsystems.ResourceConfig, vol
 
 	if err := parent.Start(); err != nil {
 		logrus.Errorf("parent process start error %v", err)
+	}
+
+	//log container info
+	containerID, err := container.RecordContainerInfo(parent.Process.Pid, containerName, cmdArgs)
+	if err != nil {
+		logrus.Errorf("record container info error %v", err)
+		return
 	}
 
 	//set cgroup limit
@@ -96,6 +114,7 @@ func Run(tty, detach bool, cmdArgs []string, res *subsystems.ResourceConfig, vol
 
 	if tty {
 		parent.Wait()
+		container.DeleteContainerInfo(containerID)
 	}
 
 	//delete container workspace

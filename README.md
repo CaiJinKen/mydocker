@@ -24,3 +24,5 @@ sudo ./mydocker -h
 增加容器简单打包(commit)
 
 增加容器后台运行(-d)
+
+增加查看容器(ps)
