@@ -41,11 +41,21 @@ var runCommand = cli.Command{
 			Name:  "v",
 			Usage: "volume mapping",
 		},
+		cli.BoolFlag{
+			Name:  "d",
+			Usage: "detach container",
+		},
 	},
 
 	Action: func(ctx *cli.Context) error {
 		if len(ctx.Args()) < 1 {
 			return fmt.Errorf("missing command")
+		}
+
+		tty := ctx.Bool("ti")
+		detach := ctx.Bool("d")
+		if tty && detach {
+			return fmt.Errorf("cannot use ti and d at same time")
 		}
 
 		resConf := &subsystems.ResourceConfig{
@@ -57,14 +67,13 @@ var runCommand = cli.Command{
 		volumeURLs := ctx.StringSlice("v")
 		logrus.Infof("volumeURLs: %v", volumeURLs)
 
-		tty := ctx.Bool("ti")
-		Run(tty, []string(ctx.Args()), resConf, volumeURLs)
+		Run(tty, detach, []string(ctx.Args()), resConf, volumeURLs)
 		return nil
 	},
 }
 
 //Run fork a new process to start container
-func Run(tty bool, cmdArgs []string, res *subsystems.ResourceConfig, volumeURLs []string) {
+func Run(tty, detach bool, cmdArgs []string, res *subsystems.ResourceConfig, volumeURLs []string) {
 	logrus.Infof("Run tty %b, args: %v", tty, cmdArgs)
 	parent, writePipe := container.NewParentProcess(tty, volumeURLs)
 	if parent == nil {
@@ -85,14 +94,16 @@ func Run(tty bool, cmdArgs []string, res *subsystems.ResourceConfig, volumeURLs 
 	//send command with args to init process
 	sendInitCommand(cmdArgs, writePipe)
 
-	parent.Wait()
+	if tty {
+		parent.Wait()
+	}
 
 	//delete container workspace
-	rootURL := "/root/"
-	mntURL := "/root/mnt"
-	container.DeleteWorkSpace(rootURL, mntURL, volumeURLs)
+	//rootURL := "/root/"
+	//mntURL := "/root/mnt"
+	//container.DeleteWorkSpace(rootURL, mntURL, volumeURLs)
 
-	os.Exit(0)
+	//os.Exit(0)
 }
 
 func sendInitCommand(cmdArgs []string, writePipe *os.File) {
