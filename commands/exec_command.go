@@ -26,10 +26,10 @@ var execCommand = cli.Command{
 			return fmt.Errorf("missing container name or command")
 		}
 
-		containerName := ctx.Args().Get(0)
+		containerNameOrID := ctx.Args().Get(0)
 		cmdArgs := ctx.Args()[1:]
 
-		ExecContainer(containerName, cmdArgs)
+		ExecContainer(containerNameOrID, cmdArgs)
 
 		return nil
 	},
@@ -40,8 +40,8 @@ const (
 	EnvExecCMD = "mydocker_cmd"
 )
 
-func ExecContainer(containerName string, cmdArgs []string) {
-	pid, err := container.GetContainerPidByName(containerName)
+func ExecContainer(containerNameOrID string, cmdArgs []string) {
+	pid, err := container.GetContainerPidByIdentification(containerNameOrID)
 	if err != nil {
 		logrus.Errorf("get container pid by name error %v", err)
 		return
@@ -63,6 +63,6 @@ func ExecContainer(containerName string, cmdArgs []string) {
 	}
 
 	if err := cmd.Run(); err != nil {
-		logrus.Errorf("exec container %s error %v", containerName, err)
+		logrus.Errorf("exec container %s error %v", containerNameOrID, err)
 	}
 }

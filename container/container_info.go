@@ -38,6 +38,40 @@ var (
 	ConfigName          = "config.json"
 )
 
+func (containerInfo *Info) Stop() error {
+	containerInfo.Pid = ""
+	containerInfo.Status = Stop
+	return containerInfo.Save()
+}
+
+func (containerInfo *Info) Save() error {
+	infoBytes, err := json.Marshal(containerInfo)
+	if err != nil {
+		logrus.Errorf("marshal container info error %v", err)
+		return nil
+	}
+
+	infoStr := string(infoBytes)
+	infoFilePath := containerInfoPath(containerInfo.ID)
+	utils.MustPathExist(infoFilePath)
+
+	fileName := fmt.Sprintf("%s/%s", infoFilePath, ConfigName)
+	file, err := os.Create(fileName)
+	defer file.Close()
+
+	if err != nil {
+		logrus.Errorf("create file %s error %v", fileName, err)
+		return err
+	}
+
+	if _, err = file.WriteString(infoStr); err != nil {
+		logrus.Errorf("write file %s error %v", fileName, err)
+		return err
+	}
+
+	return nil
+}
+
 func generateUUID() string {
 	return strings.ReplaceAll(fmt.Sprintf("%s", uuid.NewV4()), "-", "")
 }
@@ -52,31 +86,9 @@ func RecordContainerInfo(containerPID int, containerName string, cmdArgs []strin
 		Status:    Running,
 	}
 
-	infoBytes, err := json.Marshal(containerInfo)
-	if err != nil {
-		logrus.Errorf("marshal container info error %v", err)
-		return "", nil
-	}
+	err := containerInfo.Save()
 
-	infoStr := string(infoBytes)
-	infoFilePath := containerInfoPath(containerInfo.ID)
-	utils.MustPathExist(infoFilePath)
-
-	fileName := fmt.Sprintf("%s/%s", infoFilePath, ConfigName)
-	file, err := os.Create(fileName)
-	defer file.Close()
-
-	if err != nil {
-		logrus.Errorf("create file %s error %v", fileName, err)
-		return "", err
-	}
-
-	if _, err = file.WriteString(infoStr); err != nil {
-		logrus.Errorf("write file %s error %v", fileName, err)
-		return "", err
-	}
-
-	return containerInfo.ID, nil
+	return containerInfo.ID, err
 
 }
 
@@ -90,25 +102,33 @@ func DeleteContainerInfo(containerID string) {
 	}
 }
 
-func ListContainer(all bool) {
+func getContainerInfos() (infos []*Info) {
 	files, err := ioutil.ReadDir(DefaultInfoLocation)
 	if err != nil {
 		logrus.Errorf("read container base path %s error %v", DefaultInfoLocation, err)
 		return
 	}
 
-	var infos []*Info
 	for _, file := range files {
-		info, err := getContainerInfo(file.Name(), all)
+		info, err := getContainerInfoByID(file.Name())
 		if info == nil || err != nil {
 			continue
 		}
 		infos = append(infos, info)
 	}
+	return
+}
+
+func ListContainer(all bool) {
+
+	infos := getContainerInfos()
 
 	w := tabwriter.NewWriter(os.Stdout, 12, 1, 3, ' ', 0)
 	fmt.Fprintf(w, "ID\tNAME\tPID\tSTATUS\tCOMMAND\tCREATED\n")
 	for _, info := range infos {
+		if !all && info.Status != Running {
+			continue
+		}
 		fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\t%s\n",
 			info.ID,
 			info.Name,
@@ -119,13 +139,13 @@ func ListContainer(all bool) {
 		)
 	}
 
-	if err = w.Flush(); err != nil {
+	if err := w.Flush(); err != nil {
 		logrus.Errorf("flush io error %v", err)
 	}
 
 }
 
-func getContainerInfo(containerID string, all bool) (*Info, error) {
+func getContainerInfoByID(containerID string) (*Info, error) {
 	//avoid . or .. file
 	if len(containerID) < 3 {
 		return nil, nil
@@ -143,15 +163,54 @@ func getContainerInfo(containerID string, all bool) (*Info, error) {
 		logrus.Errorf("unmarshal info error %v", err)
 		return nil, err
 	}
-	if !all && info.Status != Running {
-		return nil, nil
-	}
 
 	return &info, nil
 }
 
+func getContainerInfoByName(containerName string) (*Info, error) {
+	infos := getContainerInfos()
+	for _, info := range infos {
+		if info.Name == containerName {
+			return info, nil
+		}
+	}
+
+	return nil, fmt.Errorf("container %s not found", containerName)
+}
+
+func GetContainerInfoByIdentification(containerNameOrID string) (*Info, error) {
+	infos := getContainerInfos()
+	for _, info := range infos {
+		if info.Name == containerNameOrID || info.ID == containerNameOrID {
+			return info, nil
+		}
+	}
+
+	return nil, fmt.Errorf("container %s not found", containerNameOrID)
+}
+
+func GetContainerPidByID(containerId string) (string, error) {
+	info, err := getContainerInfoByID(containerId)
+	if err != nil {
+		return "", err
+	}
+	return info.Pid, nil
+}
+
+func GetContainerInfoByName(containerName string) (*Info, error) {
+	return getContainerInfoByName(containerName)
+}
+
 func GetContainerPidByName(containerName string) (string, error) {
-	info, err := getContainerInfo(containerName, true)
+	info, err := getContainerInfoByName(containerName)
+	if err != nil {
+		return "", err
+	}
+	return info.Pid, nil
+}
+
+func GetContainerPidByIdentification(containerNameOrID string) (string, error) {
+	info, err := GetContainerInfoByIdentification(containerNameOrID)
 	if err != nil {
 		return "", err
 	}
