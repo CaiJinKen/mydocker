@@ -11,6 +11,7 @@ import (
 	"github.com/urfave/cli"
 )
 
+//todo unmount(volume/mnt) / delete work dir etc...
 var stopCommand = cli.Command{
 	Name:  "stop",
 	Usage: "stop container",

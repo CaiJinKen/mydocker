@@ -29,8 +29,8 @@ type Info struct {
 
 const (
 	Running = "RUNNING"
-	Stop    = "STOP"
-	Exit    = "EXIT"
+	Stop    = "STOPPED"
+	Exit    = "EXITED"
 )
 
 var (
@@ -69,13 +69,33 @@ func (containerInfo *Info) Save() error {
 		return err
 	}
 
+	if containerInfo.Name != "" && containerInfo.Name != containerInfo.ID {
+		containerMapping[containerInfo.Name] = containerInfo
+	}
+	containerMapping[containerInfo.ID] = containerInfo
+
 	return nil
 }
 
+func (containerInfo *Info) Remove() error {
+	infoFilePath := containerInfoPath(containerInfo.ID)
+	utils.RemoveAll(infoFilePath)
+
+	delete(containerMapping, containerInfo.Name)
+	delete(containerMapping, containerInfo.ID)
+	return nil
+}
+
+//keep container info into cache
+//key is container name or container id
+var containerMapping = make(map[string]*Info)
+
+//generate container UUID
 func generateUUID() string {
 	return strings.ReplaceAll(fmt.Sprintf("%s", uuid.NewV4()), "-", "")
 }
 
+//RecordContainerInfo record container info
 func RecordContainerInfo(containerPID int, containerName string, cmdArgs []string) (string, error) {
 	containerInfo := &Info{
 		Pid:       strconv.Itoa(containerPID),
@@ -114,7 +134,15 @@ func getContainerInfos() (infos []*Info) {
 		if info == nil || err != nil {
 			continue
 		}
+
+		//save info into cache
+		if info.Name != "" && info.Name != info.ID {
+			containerMapping[info.Name] = info
+		}
+		containerMapping[info.ID] = info
+
 		infos = append(infos, info)
+
 	}
 	return
 }
@@ -151,6 +179,10 @@ func getContainerInfoByID(containerID string) (*Info, error) {
 		return nil, nil
 	}
 
+	if info, ok := containerMapping[containerID]; ok && info != nil {
+		return info, nil
+	}
+
 	fileName := fmt.Sprintf("%s/%s/%s", DefaultInfoLocation, containerID, ConfigName)
 	bytes, err := ioutil.ReadFile(fileName)
 	if err != nil {
@@ -168,6 +200,10 @@ func getContainerInfoByID(containerID string) (*Info, error) {
 }
 
 func getContainerInfoByName(containerName string) (*Info, error) {
+	if info, ok := containerMapping[containerName]; ok && info != nil {
+		return info, nil
+	}
+
 	infos := getContainerInfos()
 	for _, info := range infos {
 		if info.Name == containerName {
@@ -179,6 +215,10 @@ func getContainerInfoByName(containerName string) (*Info, error) {
 }
 
 func GetContainerInfoByIdentification(containerNameOrID string) (*Info, error) {
+	if info, ok := containerMapping[containerNameOrID]; ok && info != nil {
+		return info, nil
+	}
+
 	infos := getContainerInfos()
 	for _, info := range infos {
 		if info.Name == containerNameOrID || info.ID == containerNameOrID {

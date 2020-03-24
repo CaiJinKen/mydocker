@@ -10,4 +10,5 @@ var Commands = []cli.Command{
 	psCommand,
 	execCommand,
 	stopCommand,
+	removeCommand,
 }
