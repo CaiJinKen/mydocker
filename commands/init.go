@@ -11,4 +11,5 @@ var Commands = []cli.Command{
 	execCommand,
 	stopCommand,
 	removeCommand,
+	startCommand,
 }

@@ -35,5 +35,5 @@ func removeContainer(containerNameOrID string) {
 		return
 	}
 
-	info.Remove()
+	container.DeleteContainerInfo(info.ID)
 }

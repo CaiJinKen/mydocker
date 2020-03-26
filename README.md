@@ -27,4 +27,10 @@ sudo ./mydocker -h
 
 增加查看容器(ps)
 
+增加进入容器(exec)
+
 增加容器终止(stop)
+
+增加删除容器(rm)
+
+增加开始容器(start)

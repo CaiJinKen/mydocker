@@ -11,7 +11,6 @@ import (
 	"github.com/urfave/cli"
 )
 
-//todo unmount(volume/mnt) / delete work dir etc...
 var stopCommand = cli.Command{
 	Name:  "stop",
 	Usage: "stop container",
@@ -33,10 +32,18 @@ func stopContainer(containerNameOrID string) {
 		return
 	}
 
+	if info.Tty {
+		logrus.Errorf("container used tty param, please stop it into container")
+		return
+	}
+
+	if info.Status != container.Running {
+		return
+	}
+
 	pid, err := strconv.Atoi(info.Pid)
 	if err != nil {
 		logrus.Errorf("convert pid to int error %v", err)
-		return
 	}
 
 	if err = syscall.Kill(pid, syscall.SIGTERM); err != nil {
@@ -44,4 +51,5 @@ func stopContainer(containerNameOrID string) {
 	}
 
 	info.Stop()
+	container.CleanUpWorkspace(info.ID)
 }

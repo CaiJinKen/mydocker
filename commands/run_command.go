@@ -3,7 +3,10 @@ package commands
 import (
 	"fmt"
 	"os"
+	"strconv"
 	"strings"
+
+	"github.com/CaiJinKen/mydocker/utils"
 
 	"github.com/CaiJinKen/mydocker/cgroups"
 
@@ -66,6 +69,8 @@ var runCommand = cli.Command{
 			return fmt.Errorf("cannot use ti and d at same time")
 		}
 
+		rm := ctx.Bool("rm")
+
 		resConf := &subsystems.ResourceConfig{
 			MemoryLimit: ctx.String("m"),
 			CpuSet:      ctx.String("cpuset"),
@@ -78,15 +83,16 @@ var runCommand = cli.Command{
 		containerName := ctx.String("name")
 		logrus.Infof("containerName: %s", containerName)
 
-		Run(tty, detach, []string(ctx.Args()), resConf, volumeURLs, containerName)
+		Run(tty, rm, []string(ctx.Args()), resConf, volumeURLs, containerName)
 		return nil
 	},
 }
 
 //Run fork a new process to start container
-func Run(tty, detach bool, cmdArgs []string, res *subsystems.ResourceConfig, volumeURLs []string, containerName string) {
+func Run(tty, rm bool, cmdArgs []string, res *subsystems.ResourceConfig, volumeURLs []string, containerName string) {
 	logrus.Infof("Run tty %b, args: %v", tty, cmdArgs)
-	parent, writePipe := container.NewParentProcess(tty, volumeURLs)
+	containerID := container.GenerateUUID()
+	parent, writePipe := container.NewParentProcess(tty, volumeURLs, containerID)
 	if parent == nil {
 		logrus.Errorf("new parent process error")
 		return
@@ -97,14 +103,27 @@ func Run(tty, detach bool, cmdArgs []string, res *subsystems.ResourceConfig, vol
 	}
 
 	//log container info
-	containerID, err := container.RecordContainerInfo(parent.Process.Pid, containerName, cmdArgs)
-	if err != nil {
+	logrus.Infof("container pid is %d", parent.Process.Pid)
+	containerInfo := &container.Info{
+		Pid:       strconv.Itoa(parent.Process.Pid),
+		ID:        containerID,
+		Name:      containerName,
+		Command:   strings.Join(cmdArgs, " "),
+		Status:    container.Running,
+		Rm:        rm,
+		Tty:       tty,
+		Volumes:   volumeURLs,
+		Resource:  res.String(),
+		CreatedAt: utils.TimeNowString(),
+	}
+
+	if err := containerInfo.Save(); err != nil {
 		logrus.Errorf("record container info error %v", err)
 		return
 	}
 
 	//set cgroup limit
-	cgroupManager := cgroups.NewCgroupManager("mydocker-cgroup")
+	cgroupManager := cgroups.NewCgroupManager(containerID)
 	defer cgroupManager.Destroy()
 	cgroupManager.Set(res)
 	cgroupManager.Apply(parent.Process.Pid)
@@ -112,17 +131,25 @@ func Run(tty, detach bool, cmdArgs []string, res *subsystems.ResourceConfig, vol
 	//send command with args to init process
 	sendInitCommand(cmdArgs, writePipe)
 
+	//tty waiting exit: tty container exit / mydocker stop
 	if tty {
 		parent.Wait()
-		container.DeleteContainerInfo(containerID)
+
+		//change container status
+		info, err := container.GetContainerInfoByIdentification(containerID)
+		if err != nil {
+			logrus.Errorf("get container info by identification error %v", err)
+		}
+		if info != nil {
+			info.Status = container.Exit
+			info.Pid = ""
+			info.Save()
+		}
+
+		container.CleanUpWorkspace(containerID)
 	}
+	//parent exit
 
-	//delete container workspace
-	//rootURL := "/root/"
-	//mntURL := "/root/mnt"
-	//container.DeleteWorkSpace(rootURL, mntURL, volumeURLs)
-
-	//os.Exit(0)
 }
 
 func sendInitCommand(cmdArgs []string, writePipe *os.File) {
