@@ -1,9 +1,19 @@
 package subsystems
 
+import "encoding/json"
+
 type ResourceConfig struct {
-	MemoryLimit string
-	CpuShare    string
-	CpuSet      string
+	MemoryLimit string `json:"memory_limit"`
+	CpuShare    string `json:"cpu_share"`
+	CpuSet      string `json:"cpu_set"`
+}
+
+func (r *ResourceConfig) String() string {
+	bts, err := json.Marshal(r)
+	if err != nil {
+		return ""
+	}
+	return string(bts)
 }
 
 type Subsystem interface {
