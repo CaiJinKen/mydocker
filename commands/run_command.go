@@ -3,8 +3,12 @@ package commands
 import (
 	"fmt"
 	"os"
+	"os/exec"
 	"strconv"
 	"strings"
+	"syscall"
+
+	"github.com/spf13/cobra"
 
 	"github.com/CaiJinKen/mydocker/utils"
 
@@ -15,76 +19,31 @@ import (
 	"github.com/sirupsen/logrus"
 
 	"github.com/CaiJinKen/mydocker/container"
-
-	"github.com/urfave/cli"
 )
 
-var runCommand = cli.Command{
-	Name: "run",
-	Usage: `create a container with namespace and cgroups limit
-		    mydocker run -ti [command]`,
-	Flags: []cli.Flag{
-		cli.BoolFlag{
-			Name:  "ti",
-			Usage: "enable tty",
-		},
-		cli.StringFlag{
-			Name:  "m",
-			Usage: "memory limit",
-		},
-		cli.StringFlag{
-			Name:  "cpushare",
-			Usage: "cpushare limit",
-		},
-		cli.StringFlag{
-			Name:  "cpuset",
-			Usage: "cpuset limit",
-		},
-		cli.StringSliceFlag{
-			Name:  "v",
-			Usage: "volume mapping",
-		},
-		cli.BoolFlag{
-			Name:  "d",
-			Usage: "detach container",
-		},
-		cli.StringFlag{
-			Name:  "name",
-			Usage: "container name",
-		},
-		cli.BoolFlag{
-			Name:  "rm",
-			Usage: "delete container after stop",
-		},
-	},
+var runCommand = &cobra.Command{
+	Use:   "run [flags] [command]",
+	Short: "run container",
+	Long:  "create a container with namespace and cgroup limit",
+	Run: func(cmd *cobra.Command, args []string) {
 
-	Action: func(ctx *cli.Context) error {
-		if len(ctx.Args()) < 1 {
-			return fmt.Errorf("missing command")
-		}
-
-		tty := ctx.Bool("ti")
-		detach := ctx.Bool("d")
 		if tty && detach {
-			return fmt.Errorf("cannot use ti and d at same time")
+			logrus.Errorf("cannot use ti and d at same time")
+			return
 		}
-
-		rm := ctx.Bool("rm")
 
 		resConf := &subsystems.ResourceConfig{
-			MemoryLimit: ctx.String("m"),
-			CpuSet:      ctx.String("cpuset"),
-			CpuShare:    ctx.String("cpushare"),
+			MemoryLimit: memory,
+			CpuSet:      cpuset,
+			CpuShare:    cpushare,
 		}
 
-		volumeURLs := ctx.StringSlice("v")
-		logrus.Infof("volumeURLs: %v", volumeURLs)
+		logrus.Infof("volumeMappings: %v", volumeMappings)
 
-		containerName := ctx.String("name")
 		logrus.Infof("containerName: %s", containerName)
 
-		Run(tty, rm, []string(ctx.Args()), resConf, volumeURLs, containerName)
-		return nil
+		Run(tty, rm, args, resConf, volumeMappings, containerName)
+
 	},
 }
 
@@ -92,7 +51,7 @@ var runCommand = cli.Command{
 func Run(tty, rm bool, cmdArgs []string, res *subsystems.ResourceConfig, volumeURLs []string, containerName string) {
 	logrus.Infof("Run tty %b, args: %v", tty, cmdArgs)
 	containerID := container.GenerateUUID()
-	parent, writePipe := container.NewParentProcess(tty, volumeURLs, containerID)
+	parent, writePipe := NewParentProcess(tty, volumeURLs, containerID)
 	if parent == nil {
 		logrus.Errorf("new parent process error")
 		return
@@ -157,4 +116,46 @@ func sendInitCommand(cmdArgs []string, writePipe *os.File) {
 	logrus.Infof("command is %s", command)
 	writePipe.WriteString(command)
 	writePipe.Close()
+}
+
+//NewParentProcess fork a new process and pass command and args to new process
+func NewParentProcess(tty bool, volumeURLs []string, containerID string) (*exec.Cmd, *os.File) {
+	readPipe, writePipe, err := newPipe()
+	if err != nil {
+		return nil, nil
+	}
+
+	//fork a child process, setup namespace & io
+	cmd := exec.Command("/proc/self/exe", "init")
+	cmd.SysProcAttr = &syscall.SysProcAttr{
+		Cloneflags: syscall.CLONE_NEWUTS | syscall.CLONE_NEWPID | syscall.CLONE_NEWIPC | syscall.CLONE_NEWNET | syscall.CLONE_NEWNS,
+		//Credential: &syscall.Credential{Uid: 0, Gid: 0},
+	}
+
+	if tty {
+		cmd.Stdin = os.Stdin
+		cmd.Stdout = os.Stdout
+		cmd.Stderr = os.Stderr
+	}
+
+	//extra read pipe to child process
+	cmd.ExtraFiles = []*os.File{readPipe}
+
+	//create container workspace
+	mntUrl := fmt.Sprintf(container.MntURL, containerID)
+	container.NewWorkSpace(containerID, volumeURLs)
+
+	//setup work dir
+	cmd.Dir = mntUrl
+
+	return cmd, writePipe
+}
+
+func newPipe() (*os.File, *os.File, error) {
+	read, write, err := os.Pipe()
+	if err != nil {
+		logrus.Errorf("create new pipe error %v", err)
+		return nil, nil, err
+	}
+	return read, write, nil
 }

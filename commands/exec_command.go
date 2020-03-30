@@ -1,37 +1,36 @@
 package commands
 
 import (
-	"fmt"
 	"os"
 	"os/exec"
 	"strings"
+
+	"github.com/spf13/cobra"
 
 	"github.com/CaiJinKen/mydocker/container"
 	_ "github.com/CaiJinKen/mydocker/nssetter"
 
 	"github.com/sirupsen/logrus"
-	"github.com/urfave/cli"
 )
 
-var execCommand = cli.Command{
-	Name:  "exec",
-	Usage: "enter into a container",
-	Action: func(ctx *cli.Context) error {
+var execCommand = &cobra.Command{
+	Use:   "exec [container] [command]",
+	Short: "enter into a container",
+	Run: func(cmd *cobra.Command, args []string) {
 		if os.Getenv(EnvExecPID) != "" {
 			logrus.Infof("pid callback is %s", os.Getgid())
-			return nil
+			return
 		}
 
-		if len(ctx.Args()) < 2 {
-			return fmt.Errorf("missing container name or command")
+		if len(args) < 2 {
+			logrus.Errorf("missing container name or command")
+			return
 		}
 
-		containerNameOrID := ctx.Args().Get(0)
-		cmdArgs := ctx.Args()[1:]
+		containerNameOrID := args[0]
+		cmdArgs := args[1:]
 
 		ExecContainer(containerNameOrID, cmdArgs)
-
-		return nil
 	},
 }
 

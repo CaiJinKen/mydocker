@@ -1,27 +1,26 @@
 package commands
 
 import (
-	"fmt"
 	"strconv"
 	"syscall"
 
+	"github.com/spf13/cobra"
+
 	"github.com/CaiJinKen/mydocker/container"
 	"github.com/sirupsen/logrus"
-
-	"github.com/urfave/cli"
 )
 
-var stopCommand = cli.Command{
-	Name:  "stop",
-	Usage: "stop container",
-	Action: func(ctx *cli.Context) error {
-		if len(ctx.Args()) < 1 {
-			return fmt.Errorf("missing container name")
+var stopCommand = &cobra.Command{
+	Use:   "stop [container]",
+	Short: "stop container",
+	Run: func(cmd *cobra.Command, args []string) {
+		if len(args) < 1 {
+			logrus.Errorf("missing container name")
+			return
 		}
 
-		containerNameOrID := ctx.Args().Get(0)
+		containerNameOrID := args[0]
 		stopContainer(containerNameOrID)
-		return nil
 	},
 }
 

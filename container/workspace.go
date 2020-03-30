@@ -2,6 +2,8 @@ package container
 
 import (
 	"fmt"
+	"io/ioutil"
+	"os"
 	"path"
 	"strings"
 
@@ -14,15 +16,15 @@ const (
 	RootURL       = "/root/"
 	WriteLayerURL = "/var/lib/mydocker/%s/writeLayer"
 	MntURL        = "/run/mydocker/%s/mnt"
-	_rootfsFile   = "alpine-minirootfs-3.11.5-x86_64.tar.gz"
-	_rootfsURL    = "http://dl-cdn.alpinelinux.org/alpine/v3.11/releases/x86_64/alpine-minirootfs-3.11.5-x86_64.tar.gz"
+	_rootfsFile   = "ubuntu-base-16.04.1-base-amd64.tar.gz"
+	_rootfsURL    = "http://cdimage.ubuntu.com/ubuntu-base/releases/16.04/release/ubuntu-base-16.04.1-base-amd64.tar.gz"
 )
 
 //NewWorkSpace create container workspace
 func NewWorkSpace(containerID string, volumeURLs []string) {
 	writeLayerURL, mntURL := getContainerURL(containerID)
 
-	CreateReadOnlyLayer(RootURL)
+	//CreateReadOnlyLayer(RootURL)
 	CreateWriteLayer(writeLayerURL)
 	CreateMountPoint(RootURL, writeLayerURL, mntURL, containerID)
 	CreateMountVolumePoint(mntURL, volumeURLs)
@@ -33,7 +35,21 @@ func getContainerURL(containerID string) (string, string) {
 }
 
 func CreateReadOnlyLayer(rootURL string) {
-	//use /roo/rootfs as readonly layer
+	rootfs := fmt.Sprintf("%s%s", rootURL, "rootfs")
+	utils.MustPathExist(rootfs)
+	files, err := ioutil.ReadDir(rootfs)
+	if err == nil && len(files) > 0 {
+		logrus.Infof("%s is not empty", rootfs)
+		return
+	}
+
+	rootZipFile := fmt.Sprintf("%s%s", rootURL, _rootfsFile)
+	if _, err := os.Stat(rootZipFile); os.IsNotExist(err) {
+		utils.Exec("curl", "-o", _rootfsFile, "-L", _rootfsURL)
+		utils.Exec("move", _rootfsFile, rootZipFile)
+	}
+
+	utils.Exec("tar", "-xzf", rootZipFile, "-C", rootfs)
 
 }
 

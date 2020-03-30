@@ -2,30 +2,29 @@ package commands
 
 import (
 	"encoding/json"
-	"fmt"
 	"strconv"
 	"strings"
+
+	"github.com/spf13/cobra"
 
 	"github.com/CaiJinKen/mydocker/cgroups"
 	"github.com/CaiJinKen/mydocker/cgroups/subsystems"
 
 	"github.com/CaiJinKen/mydocker/container"
 	"github.com/sirupsen/logrus"
-
-	"github.com/urfave/cli"
 )
 
-var startCommand = cli.Command{
-	Name:  "start",
-	Usage: "start a container",
-	Action: func(ctx *cli.Context) error {
-		if len(ctx.Args()) < 1 {
-			return fmt.Errorf("missing container identification")
+var startCommand = &cobra.Command{
+	Use:   "start [container]",
+	Short: "start a container",
+	Run: func(cmd *cobra.Command, args []string) {
+		if len(args) < 1 {
+			logrus.Errorf("missing container identification")
+			return
 		}
 
-		containerNameOrID := ctx.Args().Get(0)
+		containerNameOrID := args[0]
 		startContainer(containerNameOrID)
-		return nil
 	},
 }
 
@@ -40,7 +39,7 @@ func startContainer(containerNameOrID string) {
 		return
 	}
 
-	parent, writePipe := container.NewParentProcess(info.Tty, info.Volumes, info.ID)
+	parent, writePipe := NewParentProcess(info.Tty, info.Volumes, info.ID)
 	if parent == nil {
 		logrus.Errorf("new parent process error")
 		return
@@ -73,10 +72,10 @@ func startContainer(containerNameOrID string) {
 		parent.Wait()
 
 		//change container status
-		info, err := container.GetContainerInfoByIdentification(info.ID)
-		if err != nil {
-			logrus.Errorf("get container info by identification error %v", err)
-		}
+		//info, err := container.GetContainerInfoByIdentification(info.ID)
+		//if err != nil {
+		//	logrus.Errorf("get container info by identification error %v", err)
+		//}
 		if info != nil {
 			info.Status = container.Exit
 			info.Save()
