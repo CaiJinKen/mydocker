@@ -4,22 +4,21 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/spf13/cobra"
+
 	"github.com/CaiJinKen/mydocker/utils"
 	"github.com/sirupsen/logrus"
-	"github.com/urfave/cli"
 )
 
-var commitCommand = cli.Command{
-	Name:  "commit",
-	Usage: "save a container into image",
-	Action: func(ctx *cli.Context) error {
-		if len(ctx.Args()) < 1 {
-			return fmt.Errorf("missing container name")
+var commitCommand = &cobra.Command{
+	Use:   "commit [image]",
+	Short: "save a container into image",
+	Run: func(cmd *cobra.Command, args []string) {
+		if len(args) < 1 {
+			logrus.Errorf("missing container identification")
+			return
 		}
-		//todo container name/id
-		imageName := ctx.Args().Get(0)
-		commitContainer(imageName)
-		return nil
+		commitContainer(args[0])
 	},
 }
 

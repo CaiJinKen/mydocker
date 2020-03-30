@@ -34,3 +34,5 @@ sudo ./mydocker -h
 增加删除容器(rm)
 
 增加开始容器(start)
+
+隐藏init命令(cobra->cli)

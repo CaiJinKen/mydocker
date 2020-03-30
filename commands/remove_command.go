@@ -1,25 +1,23 @@
 package commands
 
 import (
-	"fmt"
+	"github.com/spf13/cobra"
 
 	"github.com/CaiJinKen/mydocker/container"
 	"github.com/sirupsen/logrus"
-
-	"github.com/urfave/cli"
 )
 
-var removeCommand = cli.Command{
-	Name:  "rm",
-	Usage: "remove unused container",
-	Action: func(ctx *cli.Context) error {
-		if len(ctx.Args()) < 1 {
-			return fmt.Errorf("missing container name")
+var removeCommand = &cobra.Command{
+	Use:   "rm [container]",
+	Short: "remove unused container",
+	Run: func(cmd *cobra.Command, args []string) {
+		if len(args) < 1 {
+			logrus.Errorf("missing container name")
+			return
 		}
 
-		containerNameOrID := ctx.Args().Get(0)
+		containerNameOrID := args[0]
 		removeContainer(containerNameOrID)
-		return nil
 	},
 }
 
@@ -30,7 +28,7 @@ func removeContainer(containerNameOrID string) {
 		return
 	}
 
-	if info.Status != container.Stop {
+	if info.Status == container.Running {
 		logrus.Errorf("couldn`t remove running container")
 		return
 	}

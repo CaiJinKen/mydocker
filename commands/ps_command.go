@@ -2,21 +2,13 @@ package commands
 
 import (
 	"github.com/CaiJinKen/mydocker/container"
-	"github.com/urfave/cli"
+	"github.com/spf13/cobra"
 )
 
-var psCommand = cli.Command{
-	Name:  "ps",
-	Usage: "list container ps",
-	Flags: []cli.Flag{
-		cli.BoolFlag{
-			Name:  "a",
-			Usage: "list all container",
-		},
-	},
-	Action: func(ctx *cli.Context) error {
-		all := ctx.Bool("a")
+var psCommand = &cobra.Command{
+	Use:   "ps",
+	Short: "list container ps",
+	Run: func(cmd *cobra.Command, args []string) {
 		container.ListContainer(all)
-		return nil
 	},
 }
