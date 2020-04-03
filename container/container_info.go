@@ -29,6 +29,7 @@ type Info struct {
 	Tty       bool     `json:"tty"`
 	Volumes   []string `json:"volumes"`
 	Resource  string   `json:"resource"`
+	Envs      []string `json:"envs"`
 }
 
 const (

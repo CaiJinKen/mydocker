@@ -42,16 +42,16 @@ var runCommand = &cobra.Command{
 
 		logrus.Infof("containerName: %s", containerName)
 
-		Run(tty, rm, args, resConf, volumeMappings, containerName)
+		Run(tty, rm, args, resConf, volumeMappings, envs, containerName)
 
 	},
 }
 
 //Run fork a new process to start container
-func Run(tty, rm bool, cmdArgs []string, res *subsystems.ResourceConfig, volumeURLs []string, containerName string) {
+func Run(tty, rm bool, cmdArgs []string, res *subsystems.ResourceConfig, volumeURLs, envs []string, containerName string) {
 	logrus.Infof("Run tty %b, args: %v", tty, cmdArgs)
 	containerID := container.GenerateUUID()
-	parent, writePipe := NewParentProcess(tty, volumeURLs, containerID)
+	parent, writePipe := NewParentProcess(tty, volumeURLs, envs, containerID)
 	if parent == nil {
 		logrus.Errorf("new parent process error")
 		return
@@ -73,6 +73,7 @@ func Run(tty, rm bool, cmdArgs []string, res *subsystems.ResourceConfig, volumeU
 		Tty:       tty,
 		Volumes:   volumeURLs,
 		Resource:  res.String(),
+		Envs:      envs,
 		CreatedAt: utils.TimeNowString(),
 	}
 
@@ -119,7 +120,7 @@ func sendInitCommand(cmdArgs []string, writePipe *os.File) {
 }
 
 //NewParentProcess fork a new process and pass command and args to new process
-func NewParentProcess(tty bool, volumeURLs []string, containerID string) (*exec.Cmd, *os.File) {
+func NewParentProcess(tty bool, volumeURLs, envs []string, containerID string) (*exec.Cmd, *os.File) {
 	readPipe, writePipe, err := newPipe()
 	if err != nil {
 		return nil, nil
@@ -140,6 +141,9 @@ func NewParentProcess(tty bool, volumeURLs []string, containerID string) (*exec.
 
 	//extra read pipe to child process
 	cmd.ExtraFiles = []*os.File{readPipe}
+
+	//set environment
+	cmd.Env = append(os.Environ(), envs...)
 
 	//create container workspace
 	mntUrl := fmt.Sprintf(container.MntURL, containerID)

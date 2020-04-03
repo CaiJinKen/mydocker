@@ -1,6 +1,8 @@
 package commands
 
 import (
+	"fmt"
+	"io/ioutil"
 	"os"
 	"os/exec"
 	"strings"
@@ -61,7 +63,20 @@ func ExecContainer(containerNameOrID string, cmdArgs []string) {
 		logrus.Errorf("set mydocker_cmd env error %v")
 	}
 
+	envs := getEnvsByPid(pid)
+	cmd.Env = append(os.Environ(), envs...)
+
 	if err := cmd.Run(); err != nil {
 		logrus.Errorf("exec container %s error %v", containerNameOrID, err)
 	}
+}
+
+func getEnvsByPid(pid string) (envs []string) {
+	bts, err := ioutil.ReadFile(fmt.Sprintf("/proc/%s/environ", pid))
+	if err != nil {
+		logrus.Errorf("read pid %s environ error %v", pid, err)
+		return
+	}
+
+	return strings.Split(string(bts), "\u0000")
 }
