@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/CaiJinKen/mydocker/container"
+
 	"github.com/spf13/cobra"
 
 	"github.com/CaiJinKen/mydocker/utils"
@@ -11,19 +13,23 @@ import (
 )
 
 var commitCommand = &cobra.Command{
-	Use:   "commit [image]",
+	Use:   "commit [container] [image]",
 	Short: "save a container into image",
 	Run: func(cmd *cobra.Command, args []string) {
-		if len(args) < 1 {
+		if len(args) < 2 {
 			logrus.Errorf("missing container identification")
 			return
 		}
-		commitContainer(args[0])
+		commitContainer(args[0], args[1])
 	},
 }
 
-func commitContainer(imageName string) {
-	mntURL := "/root/mnt"
+func commitContainer(containerIdentify, imageName string) {
+	info, err := container.GetContainerInfoByIdentification(containerIdentify)
+	if err != nil {
+		return
+	}
+	mntURL := fmt.Sprintf(container.MntURL, info.ID)
 	currentPath, err := os.Getwd()
 	if err != nil {
 		logrus.Errorf("get current dir error %v", err)

@@ -17,7 +17,7 @@ var (
 	//run
 	tty, detach, rm                         bool
 	containerName, memory, cpushare, cpuset string
-	volumeMappings                          []string
+	volumeMappings, envs                    []string
 
 	//ps
 	all bool
@@ -25,7 +25,7 @@ var (
 
 func init() {
 	logrus.SetFormatter(&logrus.JSONFormatter{})
-	logrus.SetLevel(logrus.InfoLevel)
+	logrus.SetLevel(logrus.ErrorLevel)
 	logrus.SetOutput(os.Stdout)
 
 	runCommand.Flags().BoolVar(&tty, "ti", false, "enable tty")
@@ -35,6 +35,7 @@ func init() {
 	runCommand.Flags().StringVar(&cpushare, "cpushare", "", "cpushare limit")
 	runCommand.Flags().StringVar(&cpuset, "cpuset", "", "cpuset limit")
 	runCommand.Flags().StringSliceVarP(&volumeMappings, "volume", "v", nil, "volume mapping")
+	runCommand.Flags().StringSliceVarP(&envs, "env", "e", nil, "set environment")
 	runCommand.Flags().BoolVar(&rm, "rm", false, "delete container after stop")
 
 	psCommand.Flags().BoolVarP(&all, "all", "a", false, "list all container")

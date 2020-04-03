@@ -39,7 +39,7 @@ func startContainer(containerNameOrID string) {
 		return
 	}
 
-	parent, writePipe := NewParentProcess(info.Tty, info.Volumes, info.ID)
+	parent, writePipe := NewParentProcess(info.Tty, info.Volumes, info.Envs, info.ID)
 	if parent == nil {
 		logrus.Errorf("new parent process error")
 		return

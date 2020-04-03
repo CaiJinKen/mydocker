@@ -36,3 +36,5 @@ sudo ./mydocker -h
 增加开始容器(start)
 
 隐藏init命令(cobra->cli)
+
+增加环境变量(-e)
